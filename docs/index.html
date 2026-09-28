@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Credit scoring spiegabile</title>
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--ink:#1d1d1b;--muted:#6b6b66;--line:#e2e1dc;--acc:#2f5d8a;--ok:#1f7a4d;--ko:#b3362b;--okbg:#e8f4ee;--kobg:#f9eae8}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--card:#20201e;--ink:#ecebe6;--muted:#a3a29b;--line:#34332f;--acc:#8fb4dc;--ok:#6fcf9c;--ko:#ef8a80;--okbg:#1c2f25;--kobg:#35211e}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:980px;margin:0 auto;padding:28px 16px 48px}
+h1{font-size:1.7rem;margin:0 0 6px}p.lead{color:var(--muted);margin:0 0 20px;max-width:760px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}@media(max-width:760px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
+.card h2{font-size:1rem;margin:0 0 12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+label{display:block;font-size:.85rem;color:var(--muted);margin:10px 0 4px}
+input[type=number],select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+.row{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px}.row label{display:flex;gap:6px;align-items:center;margin:0;color:var(--ink)}
+.range{display:flex;gap:10px;align-items:center}.range input{flex:1}.range output{min-width:52px;text-align:right;font-variant-numeric:tabular-nums}
+#esito{border-radius:10px;padding:14px 16px;margin-bottom:12px}#esito.ok{background:var(--okbg)}#esito.ko{background:var(--kobg)}
+#esito .t{font-size:1.35rem;font-weight:700}#esito.ok .t{color:var(--ok)}#esito.ko .t{color:var(--ko)}
+.bar{height:10px;background:var(--line);border-radius:6px;overflow:hidden;margin:8px 0 2px}.bar i{display:block;height:100%;background:var(--acc)}
+ul{margin:6px 0 0;padding-left:20px}li{margin:3px 0}
+.req{display:grid;grid-template-columns:auto 1fr auto;gap:4px 10px;font-variant-numeric:tabular-nums;margin-top:8px}
+.req .y{color:var(--ok)}.req .n{color:var(--ko)}
+details{margin-top:14px}summary{cursor:pointer;color:var(--acc)}code{font-size:.85em}
+.path li{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.82rem}
+footer{color:var(--muted);font-size:.85rem;margin-top:22px}a{color:var(--acc)}
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 18px}.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px}.stat b{display:block;font-size:1.1rem}
+</style>
+</head>
+<body>
+<main>
+<h1>Credit scoring spiegabile</h1>
+<p class="lead">Valutazione di una richiesta di carta di credito con un <b>albero decisionale</b> addestrato su 338 mila richieste.
+Ha le stesse prestazioni di una Random Forest da 300 alberi, ma ogni esito si può motivare. Il calcolo avviene interamente nel tuo browser: nessun dato viene inviato.</p>
+<div class="stats">
+ <div class="stat"><span>ROC AUC albero</span><b id="s1"></b></div>
+ <div class="stat"><span>ROC AUC Random Forest</span><b id="s2"></b></div>
+ <div class="stat"><span>Nodi dell'albero</span><b id="s3"></b></div>
+</div>
+<div class="grid">
+ <form class="card" id="f" onsubmit="return false">
+  <h2>Richiedente</h2>
+  <label for="reddito">Reddito annuo</label><input type="number" id="reddito" value="180000" min="0" step="1000">
+  <label>Età</label><div class="range"><input type="range" id="eta" min="18" max="75" value="45"><output id="eta_o"></output></div>
+  <div class="row"><label><input type="checkbox" id="occupato" checked> Attualmente occupato</label></div>
+  <label>Anzianità lavorativa</label><div class="range"><input type="range" id="anz" min="0" max="45" step="0.5" value="6"><output id="anz_o"></output></div>
+  <label>Figli</label><div class="range"><input type="range" id="figli" min="0" max="6" value="0"><output id="figli_o"></output></div>
+  <label for="tipo">Tipo di reddito</label><select id="tipo"></select>
+  <label for="istr">Istruzione</label><select id="istr"></select>
+  <label for="stato">Stato civile</label><select id="stato"></select>
+  <label for="abit">Abitazione</label><select id="abit"></select>
+  <label for="prof">Professione</label><select id="prof"></select>
+  <div class="row">
+   <label><input type="checkbox" id="auto" checked> Auto</label><label><input type="checkbox" id="casa" checked> Casa di proprietà</label>
+   <label><input type="checkbox" id="tl"> Tel. lavoro</label><label><input type="checkbox" id="tf" checked> Tel. fisso</label><label><input type="checkbox" id="em" checked> Email</label>
+  </div>
+ </form>
+ <section class="card">
+  <h2>Esito</h2>
+  <div id="esito"><div class="t" id="et"></div><div class="bar"><i id="pb"></i></div><div id="pt"></div></div>
+  <b>Motivazioni</b><ul id="motivi"></ul>
+  <b style="display:block;margin-top:14px">Requisiti minimi (ricavati dai dati)</b><div class="req" id="req"></div>
+  <details><summary>Percorso nell'albero decisionale</summary><ol class="path" id="path"></ol></details>
+ </section>
+</div>
+<footer>Progetto e codice: <a href="https://github.com/massimiliano-cantore/credit-scoring">github.com/massimiliano-cantore/credit-scoring</a> ·
+Massimiliano Cantore · Demo su un dataset didattico: non è uno strumento di valutazione del credito reale. Il genere non è usato dal modello.</footer>
+</main>
+<script>
+const T = {"features": ["REDDITO", "ETA", "ANZIANITA", "CNT_CHILDREN", "OCCUPATO", "FLAG_OWN_CAR", "FLAG_OWN_REALTY", "FLAG_WORK_PHONE", "FLAG_PHONE", "FLAG_EMAIL", "NAME_INCOME_TYPE_Commercial associate", "NAME_INCOME_TYPE_Pensioner", "NAME_INCOME_TYPE_State servant", "NAME_INCOME_TYPE_Working", "NAME_INCOME_TYPE_infrequent_sklearn", "NAME_EDUCATION_TYPE_Academic degree", "NAME_EDUCATION_TYPE_Higher education", "NAME_EDUCATION_TYPE_Incomplete higher", "NAME_EDUCATION_TYPE_Lower secondary", "NAME_EDUCATION_TYPE_Secondary / secondary special", "NAME_FAMILY_STATUS_Civil marriage", "NAME_FAMILY_STATUS_Married", "NAME_FAMILY_STATUS_Separated", "NAME_FAMILY_STATUS_Single / not married", "NAME_FAMILY_STATUS_Widow", "NAME_HOUSING_TYPE_Co-op apartment", "NAME_HOUSING_TYPE_House / apartment", "NAME_HOUSING_TYPE_Municipal apartment", "NAME_HOUSING_TYPE_Office apartment", "NAME_HOUSING_TYPE_Rented apartment", "NAME_HOUSING_TYPE_With parents", "OCCUPATION_TYPE_Accountants", "OCCUPATION_TYPE_Cleaning staff", "OCCUPATION_TYPE_Cooking staff", "OCCUPATION_TYPE_Core staff", "OCCUPATION_TYPE_Drivers", "OCCUPATION_TYPE_HR staff", "OCCUPATION_TYPE_High skill tech staff", "OCCUPATION_TYPE_IT staff", "OCCUPATION_TYPE_Laborers", "OCCUPATION_TYPE_Low-skill Laborers", "OCCUPATION_TYPE_Managers", "OCCUPATION_TYPE_Medicine staff", "OCCUPATION_TYPE_Non indicato", "OCCUPATION_TYPE_Private service staff", "OCCUPATION_TYPE_Realty agents", "OCCUPATION_TYPE_Sales staff", "OCCUPATION_TYPE_Secretaries", "OCCUPATION_TYPE_Security staff", "OCCUPATION_TYPE_Waiters/barmen staff"], "left": [1, 2, 3, 4, 5, -1, 7, -1, -1, 10, 11, -1, -1, 14, -1, -1, 17, -1, 19, -1, 21, -1, -1, 24, 25, 26, -1, -1, 29, 30, -1, -1, 33, -1, -1, 36, -1, 38, -1, -1, 41, 42, 43, 44, 45, -1, -1, 48, -1, -1, 51, -1, 53, -1, -1, 56, 57, -1, -1, 60, 61, -1, -1, -1, 65, 66, 67, 68, -1, -1, 71, -1, -1, 74, 75, -1, -1, 78, -1, -1, 81, 82, 83, -1, -1, 86, -1, -1, 89, 90, -1, -1, 93, -1, -1], "right": [40, 23, 16, 9, 6, -1, 8, -1, -1, 13, 12, -1, -1, 15, -1, -1, 18, -1, 20, -1, 22, -1, -1, 35, 28, 27, -1, -1, 32, 31, -1, -1, 34, -1, -1, 37, -1, 39, -1, -1, 64, 55, 50, 47, 46, -1, -1, 49, -1, -1, 52, -1, 54, -1, -1, 59, 58, -1, -1, 63, 62, -1, -1, -1, 80, 73, 70, 69, -1, -1, 72, -1, -1, 77, 76, -1, -1, 79, -1, -1, 88, 85, 84, -1, -1, 87, -1, -1, 92, 91, -1, -1, 94, -1, -1], "feature": [0, 0, 0, 0, 0, -2, 0, -2, -2, 2, 0, -2, -2, 1, -2, -2, 1, -2, 2, -2, 1, -2, -2, 2, 2, 2, -2, -2, 1, 2, -2, -2, 10, -2, -2, 1, -2, 8, -2, -2, 1, 1, 1, 1, 1, -2, -2, 2, -2, -2, 2, -2, 0, -2, -2, 2, 2, -2, -2, 17, 1, -2, -2, -2, 2, 2, 2, 2, -2, -2, 10, -2, -2, 2, 21, -2, -2, 8, -2, -2, 1, 1, 2, -2, -2, 2, -2, -2, 1, 2, -2, -2, 2, -2, -2], "threshold": [164783.8672, 162736.7031, 161242.7422, 158150.7188, 156890.5938, -2.0, 156905.9375, -2.0, -2.0, 10.0945, 158168.9453, -2.0, -2.0, 41.4456, -2.0, -2.0, 43.0595, -2.0, 4.5572, -2.0, 45.5181, -2.0, -2.0, 13.5784, 4.7598, 4.2272, -2.0, -2.0, 43.1622, 5.4374, -2.0, -2.0, 0.5, -2.0, -2.0, 43.603, -2.0, 0.5, -2.0, -2.0, 42.46, 41.8111, 41.384, 40.9185, 40.3546, -2.0, -2.0, 6.4791, -2.0, -2.0, 4.1478, -2.0, 177850.5234, -2.0, -2.0, 4.1656, 3.8891, -2.0, -2.0, 0.5, 42.115, -2.0, -2.0, -2.0, 4.0643, 3.9658, 3.9192, 3.8919, -2.0, -2.0, 0.5, -2.0, -2.0, 4.0233, 0.5, -2.0, -2.0, 0.5, -2.0, -2.0, 43.462, 42.9117, 11.3333, -2.0, -2.0, 11.5305, -2.0, -2.0, 44.319, 4.1999, -2.0, -2.0, 4.1602, -2.0, -2.0], "prob": [0.0878, 0.001, 0.0004, 0.0002, 0.0, 0.0, 0.0002, 0.0192, 0.0, 0.0032, 0.0008, 0.02, 0.0006, 0.0133, 0.0, 0.0201, 0.0116, 0.0, 0.0249, 0.0, 0.055, 0.1176, 0.0444, 0.0504, 0.0286, 0.0011, 0.0, 0.0196, 0.0725, 0.0055, 0.04, 0.0, 0.1775, 0.1453, 0.2885, 0.2105, 0.0, 0.3056, 0.2584, 0.3818, 0.1766, 0.0063, 0.0017, 0.0006, 0.0001, 0.0, 0.0032, 0.0138, 0.0019, 0.0267, 0.042, 0.0, 0.0619, 0.0091, 0.067, 0.1124, 0.0021, 0.0, 0.04, 0.1668, 0.1546, 0.1141, 0.1919, 0.4157, 0.3553, 0.0026, 0.0004, 0.0001, 0.0, 0.0211, 0.0543, 0.0813, 0.0, 0.1931, 0.13, 0.2241, 0.0915, 0.2789, 0.2292, 0.3725, 0.6605, 0.3955, 0.3067, 0.2695, 0.3669, 0.4697, 0.4371, 0.5257, 0.6845, 0.5942, 0.3333, 0.6001, 0.692, 0.4561, 0.6939], "samples": [270740, 136881, 135135, 132901, 125022, 120983, 4039, 52, 3987, 7879, 6372, 50, 6322, 1507, 512, 995, 2234, 1188, 1046, 573, 473, 68, 405, 1746, 1537, 944, 893, 51, 593, 362, 50, 312, 231, 179, 52, 209, 65, 144, 89, 55, 133859, 68542, 65704, 63845, 61816, 59290, 2526, 2029, 1056, 973, 1859, 599, 1260, 110, 1150, 2838, 938, 888, 50, 1900, 1811, 868, 943, 89, 65317, 30304, 29957, 29773, 29678, 95, 184, 123, 61, 347, 200, 58, 142, 147, 96, 51, 35013, 2913, 1327, 820, 507, 1586, 1002, 584, 32100, 2437, 54, 2383, 29663, 239, 29424], "infrequent": {"NAME_INCOME_TYPE": ["Student"], "NAME_EDUCATION_TYPE": [], "NAME_FAMILY_STATUS": [], "NAME_HOUSING_TYPE": [], "OCCUPATION_TYPE": []}, "soglia": 0.3891213389121339, "requisiti": {"REDDITO": 156890.64, "ETA": 40.355920602327174, "ANZIANITA": 3.893223819301848}, "categorie": {"NAME_INCOME_TYPE": ["Commercial associate", "Pensioner", "State servant", "Student", "Working"], "NAME_EDUCATION_TYPE": ["Academic degree", "Higher education", "Incomplete higher", "Lower secondary", "Secondary / secondary special"], "NAME_FAMILY_STATUS": ["Civil marriage", "Married", "Separated", "Single / not married", "Widow"], "NAME_HOUSING_TYPE": ["Co-op apartment", "House / apartment", "Municipal apartment", "Office apartment", "Rented apartment", "With parents"], "OCCUPATION_TYPE": ["Accountants", "Cleaning staff", "Cooking staff", "Core staff", "Drivers", "HR staff", "High skill tech staff", "IT staff", "Laborers", "Low-skill Laborers", "Managers", "Medicine staff", "Non indicato", "Private service staff", "Realty agents", "Sales staff", "Secretaries", "Security staff", "Waiters/barmen staff"]}, "test": {"ROC AUC": 0.978302129518864, "PR AUC": 0.6930491988777518, "Brier": 0.029527960202366168, "precisione": 0.6787965275300274, "recall": 0.9602960969044414, "F1": 0.7953737894516826}, "test_random_forest": {"ROC AUC": 0.978942422584006, "PR AUC": 0.6982059758085944}};
+const IT = {
+ NAME_INCOME_TYPE:{"Working":"Dipendente","Commercial associate":"Lavoratore autonomo / commerciale","State servant":"Dipendente pubblico","Pensioner":"Pensionato","Student":"Studente"},
+ NAME_EDUCATION_TYPE:{"Higher education":"Laurea","Incomplete higher":"Laurea non completata","Secondary / secondary special":"Diploma superiore","Lower secondary":"Licenza media","Academic degree":"Dottorato"},
+ NAME_FAMILY_STATUS:{"Married":"Sposato/a","Civil marriage":"Convivente / unione civile","Single / not married":"Single","Separated":"Separato/a","Widow":"Vedovo/a"},
+ NAME_HOUSING_TYPE:{"House / apartment":"Casa o appartamento","Rented apartment":"In affitto","With parents":"Con i genitori","Municipal apartment":"Alloggio comunale","Office apartment":"Alloggio aziendale","Co-op apartment":"Cooperativa"},
+ OCCUPATION_TYPE:{"Non indicato":"Non indicata"}
+};
+const SEL = {tipo:["NAME_INCOME_TYPE","Working"], istr:["NAME_EDUCATION_TYPE","Higher education"], stato:["NAME_FAMILY_STATUS","Married"], abit:["NAME_HOUSING_TYPE","House / apartment"], prof:["OCCUPATION_TYPE","Managers"]};
+const $ = id => document.getElementById(id);
+const nf = v => Math.round(v).toLocaleString('it-IT');
+for (const [id,[col,def]] of Object.entries(SEL)) {
+  const s = $(id);
+  for (const v of T.categorie[col]) { const o = document.createElement('option'); o.value = v; o.textContent = (IT[col]||{})[v] || v; if (v===def) o.selected = true; s.appendChild(o); }
+}
+$('s1').textContent = T.test['ROC AUC'].toFixed(3); $('s2').textContent = T.test_random_forest['ROC AUC'].toFixed(3); $('s3').textContent = T.left.length;
+
+function vettore(c) {
+  const x = {};
+  x.REDDITO = c.reddito; x.ETA = c.eta; x.OCCUPATO = c.occupato ? 1 : 0; x.ANZIANITA = c.occupato ? c.anz : 0; x.CNT_CHILDREN = c.figli;
+  x.FLAG_OWN_CAR = +c.auto; x.FLAG_OWN_REALTY = +c.casa; x.FLAG_WORK_PHONE = +c.tl; x.FLAG_PHONE = +c.tf; x.FLAG_EMAIL = +c.em;
+  const cats = {NAME_INCOME_TYPE:c.tipo, NAME_EDUCATION_TYPE:c.istr, NAME_FAMILY_STATUS:c.stato, NAME_HOUSING_TYPE:c.abit, OCCUPATION_TYPE:c.prof};
+  return T.features.map(f => {
+    if (f in x) return x[f];
+    for (const [col, val] of Object.entries(cats)) {
+      if (f.startsWith(col + '_')) {
+        const cat = f.slice(col.length + 1);
+        if (cat === 'infrequent_sklearn') return T.infrequent[col].includes(val) ? 1 : 0;
+        return cat === val ? 1 : 0;
+      }
+    }
+    return 0;
+  });
+}
+const NOMI = {REDDITO:'Reddito', ETA:'Età', ANZIANITA:'Anzianità', CNT_CHILDREN:'Figli'};
+function descr(f, thr, left) {
+  const name = T.features[f];
+  if (name in NOMI) { const v = name==='REDDITO' ? nf(thr) : thr.toFixed(1); return `${NOMI[name]} ${left ? '≤' : '>'} ${v}`; }
+  return `${name.replace(/_/g,' ')} = ${left ? 'no' : 'sì'}`;
+}
+function prevedi(x) {
+  let n = 0; const path = [];
+  while (T.left[n] !== -1) {
+    const f = T.feature[n], thr = T.threshold[n], left = x[f] <= thr;
+    path.push(descr(f, thr, left)); n = left ? T.left[n] : T.right[n];
+  }
+  return {p: T.prob[n], path, samples: T.samples[n]};
+}
+function aggiorna() {
+  const c = {reddito: +$('reddito').value || 0, eta: +$('eta').value, occupato: $('occupato').checked, anz: +$('anz').value, figli: +$('figli').value,
+             tipo: $('tipo').value, istr: $('istr').value, stato: $('stato').value, abit: $('abit').value, prof: $('prof').value,
+             auto: $('auto').checked, casa: $('casa').checked, tl: $('tl').checked, tf: $('tf').checked, em: $('em').checked};
+  $('eta_o').textContent = c.eta + ' anni'; $('anz_o').textContent = c.anz + ' anni'; $('figli_o').textContent = c.figli;
+  $('anz').disabled = !c.occupato;
+  const x = vettore(c), r = prevedi(x), R = T.requisiti;
+  const val = {REDDITO: c.reddito, ETA: c.eta, ANZIANITA: c.occupato ? c.anz : 0};
+  const et = {REDDITO:'Reddito annuo', ETA:'Età', ANZIANITA:'Anzianità lavorativa'};
+  const fmt = (k,v) => k==='REDDITO' ? nf(v) : v.toFixed(1) + ' anni';
+  const manc = Object.keys(R).filter(k => val[k] < R[k]);
+  const ok = r.p >= T.soglia && manc.length === 0;
+  $('esito').className = ok ? 'ok' : 'ko';
+  $('et').textContent = ok ? '✓ IDONEO' : '✕ NON IDONEO';
+  $('pb').style.width = (r.p*100).toFixed(0) + '%';
+  $('pt').textContent = `Probabilità stimata di affidabilità: ${(r.p*100).toFixed(0)}% (${nf(r.samples)} clienti simili nel training)`;
+  const m = manc.map(k => `${et[k]}: ${fmt(k,val[k])}, sotto il requisito minimo di ${fmt(k,R[k])}`);
+  if (!manc.length && !ok) m.push('Requisiti minimi rispettati, ma il profilo ricade in un gruppo con bassa affidabilità storica');
+  if (ok) m.push(`Tutti i requisiti rispettati: tra i profili simili il ${(r.p*100).toFixed(0)}% è risultato affidabile. Decisione finale da confermare con lo storico creditizio.`);
+  $('motivi').innerHTML = m.map(t => `<li>${t}</li>`).join('');
+  $('req').innerHTML = Object.keys(R).map(k => `<span>${et[k]}</span><span>≥ ${fmt(k,R[k])}</span><span class="${val[k]>=R[k]?'y':'n'}">${val[k]>=R[k]?'✓':'✕'} ${fmt(k,val[k])}</span>`).join('');
+  $('path').innerHTML = r.path.map(t => `<li>${t}</li>`).join('');
+}
+$('f').addEventListener('input', aggiorna); aggiorna();
+</script>
+</body>
+</html>

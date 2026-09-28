@@ -6,7 +6,7 @@ con un requisito in più rispetto alla sola accuratezza: **ogni rifiuto deve ess
 Il progetto nasce come esercitazione del Master in AI Engineering. Rivedendolo ho corretto alcuni errori e,
 soprattutto, ho scoperto nei dati una struttura che ha cambiato la soluzione.
 
-**▶ Demo live:** [Hugging Face Spaces](https://huggingface.co/spaces/MassimilianoCantore/credit-scoring): inserisci un profilo e ottieni l'esito con le motivazioni.
+**▶ Demo live:** [massimiliano-cantore.github.io/credit-scoring](https://massimiliano-cantore.github.io/credit-scoring/): inserisci un profilo e ottieni l'esito con le motivazioni. L'albero gira direttamente nel browser, senza server.
 
 ## La scoperta: tre requisiti minimi
 
@@ -53,7 +53,8 @@ Esito: NON IDONEO · probabilità di affidabilità stimata 0%
 ```
 notebooks/   credit_scoring.ipynb (eseguito, con output)
 src/         prepara() + CreditScorer: esito, probabilità e motivazioni
-app/         demo Gradio (Hugging Face Spaces)
+docs/        demo web statica (GitHub Pages): l'albero esportato in JSON e valutato in JavaScript
+app/         versione Gradio della demo, da eseguire in locale
 results/     grafici
 ```
 
