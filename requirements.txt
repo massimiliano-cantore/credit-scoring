@@ -1,0 +1,6 @@
+numpy
+pandas
+scikit-learn==1.6.1          # stessa versione usata per addestrare il modello
+joblib
+huggingface_hub
+gradio
